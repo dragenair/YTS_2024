@@ -1,0 +1,32 @@
+1st cmd : 
+	cd "C:\Users\Utkarsh\Desktop\New folder (2)\New folder (2)\mosquito"
+	mosquitto_sub -h localhost -t test/topic 
+	// -h basically defins the next text would be the host, -t tells what the dir would be
+
+2nd cmd :
+	cd "C:\Users\Utkarsh\Desktop\New folder (2)\New folder (2)\mosquito"
+	mosquitto_pub -h localhost -t test/topic -m "hey"
+	// -h basically defins the next text would be the host, -t tells what the dir would be, -m defines the initial start of the message, here its "hey"
+
+
+For in between 2 laptops:
+
+1st laptop(publisher), 1st cmd : 
+	edit the mosquito.config by adding a 
+		listener 1883
+		allow_anonymous true
+	then in cmd 1 run this
+		mosquitto -v -c "C:\Users\Utkarsh\Desktop\mosquitto.conf"
+	then in another cmd (cmd 2) without closing this cmd run:
+		mosquitto_pub -h 192.168.236.56 -t * -m "hi"
+// * - type a unique word here , the ip address should be of yourself
+
+2st laptop(subscriber), 1st cmd : 
+	edit the mosquito.config by adding a 
+		listener 1883
+		allow_anonymous true
+	then in cmd 1 run this
+		mosquitto -v -c "C:\Users\Utkarsh\Desktop\mosquitto.conf"
+	then in another cmd(cmd 2) without closing this cmd run:
+		mosquitto_sub -h 192.168.236.56 -t *
+// * - type any word which should match with publisher, the ip address should be of the publisher, same internet
