@@ -9,6 +9,10 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
+// #include <ESP32Servo.h>
+
+// Servo myservo;
+
 //WIFI STUFF
 char ssid[] = "Plaksha-Events";
 char pass[] = "Welcome@2024";
@@ -33,6 +37,7 @@ PubSubClient client(wifiClient);
 #define LED 14
 #define DHTPin 13
 #define HallEffectPin 34
+// #define ServoPin 23
 
 #define time_for_hallEffectSensor_to_break 5
 
@@ -63,9 +68,12 @@ String prev_HallEffectStr;
 
 String prev_RPM_Calculated;
 
+// int pos = 0;
+
 void setup() {
   Serial.begin(9600);
   pinMode(HallEffectPin, INPUT);
+  // myservo.attach(ServoPin);
   dht.begin();
 
   SSD1306_Setup();
@@ -143,6 +151,9 @@ void loop() {
     display.println(";LED is HIGH");
     display.display();
     client.publish(topic, String("LED is HIGH").c_str());
+    // for (pos = 0; pos <= 180; pos += 5) {
+    //   myservo.write(pos);
+    // } 
   }
   else{
     digitalWrite(LED, LOW);
@@ -157,6 +168,9 @@ void loop() {
     display.println(";LED is LOW");
     display.display();
     client.publish(topic, String("LED is LOW").c_str());
+    // for (pos = 1800; pos >= 0; pos -= 5) {
+    //   myservo.write(pos);
+    // } 
   }
   // delay(500);
   
