@@ -114,7 +114,6 @@ void loop() {
     check = true;
   }
   printOnDisplay();
-  delay(500);
 
   if(analogRead(LDR)<1000){
     digitalWrite(LED, HIGH);
