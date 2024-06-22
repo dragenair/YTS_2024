@@ -34,7 +34,9 @@ PubSubClient client(wifiClient);
 #define DHTPin 13
 #define HallEffectPin 34
 
-Adafruit_SSD1306 display = Adafruit_SSD1306(128, 62, &Wire,Reset);
+#define time_for_hallEffectSensor_to_break 5
+
+Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &Wire,Reset); // dont write 128 and 62 else it goes to default
 DHT dht = DHT(DHTPin,DHT22);
 
 // Servo myservo;  // create servo object to control a servo                                                           //May have to change
@@ -57,8 +59,9 @@ int revolutions = 0;
 
 bool check;
 String HallEffectStr;
+String prev_HallEffectStr;
 
-int time_for_hallEffectSensor_to_break = 5;
+String prev_RPM_Calculated;
 
 void setup() {
   Serial.begin(9600);
@@ -79,15 +82,27 @@ void setup() {
 
   while(WiFi.status() != WL_CONNECTED){
     Serial.println("WIFI DICONNECTED");
+    display.println("Wifi DISCONNECTED");
+    display.display();
   }
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("Wifi CONNECTED");
   Serial.println("WIFI CONNECTED");
   
   while (!client.connected()){
     Serial.println("MQTT DISCONNECTED");
+    display.println("MQTT DISCONNECTED");
+    display.display();
     client.connect("group12ESP32Client");
   }
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("MQTT CONNECTED");
   Serial.println("MQTT CONNECTED");
   Serial.println(WiFi.localIP());
+  display.clearDisplay();
+  display.setCursor(0,0);
   
   // pinMode(hall_eff, INPUT);
   // attachInterrupt(hall_eff, magnet_detect, RISING);//Initialize the intterrupt pin (Arduino digital pin 2)
@@ -104,12 +119,12 @@ void loop() {
     Serial.println("WIFI DICONNECTED");
   }
   while (!client.connected()){
-      Serial.println("MQTT DISCONNECTED");
-      client.connect("group12ESP32Client");
-      check = false;
+    Serial.println("MQTT DISCONNECTED");
+    client.connect("group12ESP32Client");
+    check = false;
   }
   if(client.connected()&& check==false){
-    Serial.println("MQTT CONNECTED");
+    Serial.println("Wifi n MQTT CONNECTED");
     Serial.println(WiFi.localIP());
     check = true;
   }
@@ -117,12 +132,30 @@ void loop() {
 
   if(analogRead(LDR)<1000){
     digitalWrite(LED, HIGH);
+    for (int y=24; y<=31; y++){
+      for (int x=60; x<127; x++){
+        display.drawPixel(x, y, BLACK); 
+      }
+    }
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(60,24);
     Serial.println("LED is HIGH");
+    display.println(";LED is HIGH");
+    display.display();
     client.publish(topic, String("LED is HIGH").c_str());
   }
   else{
     digitalWrite(LED, LOW);
+    for (int y=24; y<=31; y++){
+      for (int x=60; x<127; x++){
+        display.drawPixel(x, y, BLACK); 
+      }
+    }
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(60,24);
     Serial.println("LED is LOW");
+    display.println(";LED is LOW");
+    display.display();
     client.publish(topic, String("LED is LOW").c_str());
   }
   // delay(500);
@@ -137,7 +170,17 @@ long findRPM(){
   while((millis()/1000)<=(TimeInnitially + time_for_hallEffectSensor_to_break)){ // the rhs defines a set time until the function will return a -1/null
     if( ((millis()/1000) - (BeforeTime/1000)) != 0){
       String to_be_printed = ("magnet needs to be scanned before "+ String((TimeInnitially + time_for_hallEffectSensor_to_break)-(BeforeTime/1000))+" seconds");
+      String to_be_printed_by_Display =("scan before "+ String((TimeInnitially + time_for_hallEffectSensor_to_break)-(BeforeTime/1000))+" seconds");
       Serial.println(to_be_printed);
+      for (int y=57; y<=64; y++){
+       for (int x=0; x<127; x++){
+        display.drawPixel(x, y, BLACK); 
+       }
+      }
+      display.setCursor(0,57);
+      display.setTextColor(SSD1306_WHITE);
+      display.println(to_be_printed_by_Display);
+      display.display();
       client.publish(topic, to_be_printed.c_str());
       BeforeTime = millis();
     }
@@ -151,19 +194,18 @@ long findRPM(){
     x = magnet_detect(HallEffectPin);
     if(x==0){
       if(revolutions == 1){
-        unsigned long Initial_time_for_magnet_for_second_time = millis()/1000;
-        bool count_for_second_time = true;
-        if(((millis()/1000) - Initial_time_for_magnet_for_second_time) >1 && !count_for_second_time){
-          client.publish(topic,String("waiting for magnet for the second time").c_str());
-          Serial.println("waiting for magnet for the second time");
-          count_for_second_time = false;
-        }
+        client.publish(topic,String("waiting for magnet for the second time").c_str());
+        Serial.println("waiting for magnet for the second time");
+        //display.println("waiting for magnet...");
+        //display.display();
         TimeInnitially = millis()/1000;
         BeforeTime = millis();
       }
       if( ((millis()/1000) - (BeforeTime/1000)) != 0 && revolutions == 1){
       String to_be_printed = ("magnet needs to be rescanned before "+ String((TimeInnitially + time_for_hallEffectSensor_to_break)-(BeforeTime/1000))+" seconds");
       Serial.println(to_be_printed);
+      // display.println(to_be_printed);
+      // display.display();
       client.publish(topic, to_be_printed.c_str());
       BeforeTime = millis();
       }
@@ -191,15 +233,25 @@ int magnet_detect(int pin){
     // Serial.println("in else statement a=0");
     unsigned long Initial_time_for_magnet_in_static = millis()/1000;
     revolutions = revolutions + 1;
-    // Serial.println("Magnet present");
+    Serial.println("Magnet present");
     bool count = false;
+    Serial.println("HallEffect Pin: " +digitalRead(HallEffectPin));
     while(digitalRead(HallEffectPin)==0){
       if(((millis()/1000)-Initial_time_for_magnet_in_static) > 1 && !count){
+        for (int y=48; y<=55; y++){
+          for (int x=0; x<127; x++){
+            display.drawPixel(x, y, BLACK); 
+          }
+        }
+        display.setCursor(0,49);
+        display.setTextColor(SSD1306_WHITE);
         Serial.println("magnet is stuck");
+        display.println("magnet is stuck");
+        display.display();
         client.publish(topic, String("magnet is stuck").c_str());
         count = true;
       }
-      // Serial.println("in while loop a=0, magnet always present");
+      Serial.println("in while loop a=0, magnet always present");
     }
     if(revolutions == 1){
       timeold = millis();
@@ -224,8 +276,25 @@ void SSD1306_Setup(){
   display.display();
 }
 void printOnDisplay(){
-  display.clearDisplay();
+  for (int y=0; y<=23; y++){
+    for (int x=0; x<127; x++){
+      display.drawPixel(x, y, BLACK); 
+    }
+  }
+  for (int y=24; y<=31; y++){
+    for (int x=0; x<60; x++){
+      display.drawPixel(x, y, BLACK); 
+    }
+  }
+  for (int y=48; y<=64; y++){
+    for (int x=0; x<127; x++){
+      display.drawPixel(x, y, BLACK); 
+    }
+  }
   display.setCursor(0,0);
+  display.setTextColor(SSD1306_WHITE);
+  // display.clearDisplay();
+  // display.setCursor(0,0);
   float temp = dht.readTemperature();
   float hum = dht.readHumidity();
   double v2 = analogRead(MQ135) * (v / 4095.0);  
@@ -242,7 +311,9 @@ void printOnDisplay(){
   // Serial.print("Humidity: ");
   // Serial.println(hum);
   display.println(" g/m^3");
+  // display.display();
 
+  display.setCursor(0,8);
   String tempStr = "Temperature: "+String(temp);
   display.print(tempStr);
   // display.print("Temperature: ");
@@ -252,7 +323,9 @@ void printOnDisplay(){
   // Serial.print("Temperature: ");
   // Serial.println(temp);
   display.println(" C");
+  // display.display();
 
+  display.setCursor(0,16);
   String ppmStr = "MQ135 value: "+String(ppm);
   display.println(ppmStr);
   // display.print("MQ135 value: ");
@@ -261,30 +334,52 @@ void printOnDisplay(){
   Serial.println(ppmStr);
   // Serial.print("MQ135 value: ");
   // Serial.println(ppm);
+  // display.display();
   
+  display.setCursor(0,24);
   String LDRStr = "LDR: "+String(analogRead(LDR));
   Serial.println(LDRStr);
   display.println(LDRStr);
   client.publish(topic, LDRStr.c_str());
+  display.display();
+
+  for (int y=40; y<=47; y++){
+    for (int x=0; x<127; x++){
+      display.drawPixel(x, y, BLACK); 
+    }
+  }
+  display.setCursor(0,40);
+  display.setTextColor(SSD1306_WHITE);
+  prev_HallEffectStr = ("RPM Before: " + prev_RPM_Calculated);
+  display.print(prev_HallEffectStr);
+  display.display();
 
   long RPM_Calculated = findRPM();
+  String HallEffectForDisplay;
   if(RPM_Calculated == -1){
     HallEffectStr = "RPM: "+String("magnet took too long");
+    HallEffectForDisplay = "RPM: "+String("magnet took time");
   }
   else{
     HallEffectStr = "RPM: "+String(RPM_Calculated);
+    HallEffectForDisplay ="RPM: "+String(RPM_Calculated);
+    prev_RPM_Calculated = String(RPM_Calculated);
   }
+  for (int y=32; y<=39; y++){
+    for (int x=0; x<127; x++){
+      display.drawPixel(x, y, BLACK); 
+    }
+  }
+  display.setCursor(0,32);
+  display.setTextColor(SSD1306_WHITE);
   // display.print("RPM: ");
-  display.println(HallEffectStr);
+  display.println(HallEffectForDisplay);
   client.publish(topic, HallEffectStr.c_str());
   // Serial.print("RPM: ");
   Serial.println(HallEffectStr);
+  display.display();
   
   //blank line
-  display.println("-----------------");
   client.publish(topic,String("-------------------------").c_str());
   Serial.println("-----------------");
-
-  display.display();
 }
-
