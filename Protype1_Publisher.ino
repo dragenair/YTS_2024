@@ -32,7 +32,7 @@ PubSubClient client(wifiClient);
 #define LDR 33
 #define LED 14
 #define DHTPin 13
-#define HallEffectPin 32
+#define HallEffectPin 34
 
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 62, &Wire,Reset);
 DHT dht = DHT(DHTPin,DHT22);
@@ -116,7 +116,7 @@ void loop() {
   printOnDisplay();
   delay(500);
 
-  if(analogRead(LDR)>2700){
+  if(analogRead(LDR)<1000){
     digitalWrite(LED, HIGH);
     Serial.println("LED is HIGH");
     client.publish(topic, String("LED is HIGH").c_str());
@@ -142,7 +142,6 @@ long findRPM(){
       client.publish(topic, to_be_printed.c_str());
       BeforeTime = millis();
     }
-
     // if(timeRepeated -((TimeInnitially + time_for_hallEffectSensor_to_break)-(BeforeTime/1000))==0){
     //   Serial.print("you have ");
     //   Serial.print((timeRTimeInnitiallyightNow + time_for_hallEffectSensor_to_break)-(BeforeTime/1000));
@@ -153,8 +152,21 @@ long findRPM(){
     x = magnet_detect(HallEffectPin);
     if(x==0){
       if(revolutions == 1){
-        client.publish(topic,String("waiting for magnet for the second time").c_str());
-        Serial.println("waiting for magnet for the second time");
+        unsigned long Initial_time_for_magnet_for_second_time = millis()/1000;
+        bool count_for_second_time = true;
+        if(((millis()/1000) - Initial_time_for_magnet_for_second_time) >1 && !count_for_second_time){
+          client.publish(topic,String("waiting for magnet for the second time").c_str());
+          Serial.println("waiting for magnet for the second time");
+          count_for_second_time = false;
+        }
+        TimeInnitially = millis()/1000;
+        BeforeTime = millis();
+      }
+      if( ((millis()/1000) - (BeforeTime/1000)) != 0 && revolutions == 1){
+      String to_be_printed = ("magnet needs to be rescanned before "+ String((TimeInnitially + time_for_hallEffectSensor_to_break)-(BeforeTime/1000))+" seconds");
+      Serial.println(to_be_printed);
+      client.publish(topic, to_be_printed.c_str());
+      BeforeTime = millis();
       }
       if(revolutions==2){
         long RPMValue = calculateRPM();
@@ -172,16 +184,23 @@ long calculateRPM() {
 }
 int magnet_detect(int pin){
   int a = digitalRead(pin);
-  Serial.print("before if statement");
+  // Serial.println("before if statement");
   if (a == 1) {
-    Serial.print("in if statement a=1 we dont want");
+    // Serial.println("in if statement a=1 we dont want");
   }
   else {
-    Serial.print("in else statement a=0");
+    // Serial.println("in else statement a=0");
+    unsigned long Initial_time_for_magnet_in_static = millis()/1000;
     revolutions = revolutions + 1;
     // Serial.println("Magnet present");
+    bool count = false;
     while(digitalRead(HallEffectPin)==0){
-      Serial.print("in while loop a=0, magnet always present");
+      if(((millis()/1000)-Initial_time_for_magnet_in_static) > 1 && !count){
+        Serial.println("magnet is stuck");
+        client.publish(topic, String("magnet is stuck").c_str());
+        count = true;
+      }
+      // Serial.println("in while loop a=0, magnet always present");
     }
     if(revolutions == 1){
       timeold = millis();
@@ -269,3 +288,4 @@ void printOnDisplay(){
 
   display.display();
 }
+
