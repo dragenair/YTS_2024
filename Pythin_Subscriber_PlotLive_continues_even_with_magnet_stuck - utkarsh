@@ -16,6 +16,7 @@ rpmvals = []
 # Setting up the plot
 fig, [[ax1, ax2], [ax3, ax4]] = plt.subplots(2, 2, figsize=(10, 10))
 plt.subplots_adjust(hspace=0.5)
+plt.suptitle("Weather Station")
 
 # MQTT callback functions
 def on_connect(client, userdata, flags, rc):
